@@ -19,7 +19,7 @@ Our first version of the model and training process:
 ### `nedf_V2.ipynb`
 The second version of the model and training process:
 - Removes supervised ray stopping, allowing better potential on new data.
-- Still requires further improvements for optimal performance.
+- Still requires further improvements for acceptable performance.
 - **Details:** Refer to the accompanying paper for additional insights.
 
 ## How to Run the Notebooks
