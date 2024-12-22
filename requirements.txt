@@ -1,0 +1,4 @@
+torch>=1.11.0  # Ensure GPU support (CUDA compatible version)
+opencv-python-headless>=4.5.0  # For image processing without GUI dependencies
+numpy>=1.21.0  # For numerical computations
+matplotlib>=3.4.0  # For visualization
