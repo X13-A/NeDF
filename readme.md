@@ -13,13 +13,13 @@ A minimal example showcasing how a deep learning model can learn to predict Sign
 ### `nedf_V1.ipynb`
 Our first version of the model and training process:
 - Uses the reference depth to stop rays during both training and inference.
-- Known issue: Rays never stop on unseen data, leading to limitations.
+- Known issue: Rays never stop on unseen data.
 - **Details:** Refer to the accompanying paper (`nedf_paper.pdf`) for more information.
 
 ### `nedf_V2.ipynb`
 The second version of the model and training process:
 - Removes supervised ray stopping, allowing better potential on new data.
-- Still requires further improvements for optimal performance.
+- Still requires improvements for convincing performance.
 - **Details:** Refer to the accompanying paper (`nedf_paper.pdf`) for additional insights.
 
 ## How to Run the Notebooks
