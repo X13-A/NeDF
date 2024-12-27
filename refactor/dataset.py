@@ -21,7 +21,7 @@ def load_dataset():
     # Initialize dataset
     dataset = {}
 
-    print("Loading depth maps, generating rays, and sorting by depth...")
+    print("Loading depth maps, generating rays, and filtering by depth...")
     # Load depth maps
     for filename in os.listdir(DEPTHS_PATH):
         # Extract the index from the filename
@@ -44,24 +44,24 @@ def load_dataset():
             new_height = int(depth_map.shape[0] * DEPTHMAP_SIZE_RESCALE)
             resized_depth_map = cv2.resize(depth_map, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
-            # Scale down the depth (too high for the current model)
-            resized_depth_map = resized_depth_map * SCENE_SCALE
-
             # Compute focal length from FOV
             focal_length = fov_to_focal_length(FOV, new_width)
 
             # Convert position and angle to transformation matrix
             camera_pos = cameras[BASE_CAMERA_LOCATION_ENTRY][index_value]
             camera_angle = cameras[BASE_CAMERA_ANGLE_ENTRY][index_value]
-
-            camera_pos = blender_to_opengl(torch.tensor([camera_pos]))[0]
-            camera_angle = blender_to_opengl(torch.tensor([camera_angle]))[0]
-
-            camera_pos_torch = torch.tensor(camera_pos, dtype=torch.float32)
-            camera_angle_torch = torch.tensor(camera_angle, dtype=torch.float32)
             
-            camera_pos_glm = glm.vec3(camera_pos[0], camera_pos[1], camera_pos[2])
-            camera_angle_glm = glm.vec3(camera_angle[0], camera_angle[1], camera_angle[2])
+            camera_pos_torch = blender_to_opengl(torch.tensor(np.array([camera_pos])))[0]
+            camera_angle_torch = blender_to_opengl(torch.tensor(np.array([camera_angle])))[0]
+            
+            print(f"- Processing index {index_value}")
+            print(f"  - Blender Camera Position: {camera_pos}")
+            print(f"  - Blender Camera Angle: {camera_angle}")
+            print(f"  - OpenGL Camera Position: {camera_pos_torch}")
+            print(f"  - OpenGL Camera Angle: {camera_angle_torch}")
+
+            camera_pos_glm = glm.vec3(camera_pos_torch[0], camera_pos_torch[1], camera_pos_torch[2])
+            camera_angle_glm = glm.vec3(camera_angle_torch[0], camera_angle_torch[1], camera_angle_torch[2])
             view_matrix_glm = make_view_matrix(camera_pos_glm, camera_angle_glm)
             view_matrix_torch = glm_mat4_to_torch(view_matrix_glm)
             

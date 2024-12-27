@@ -52,16 +52,18 @@ def pos_angle_to_tform_cam2world(camera_pos: glm.vec3, camera_angle: glm.vec3) -
 
 
 def meshgrid_xy(tensor1: torch.Tensor, tensor2: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """Mimick np.meshgrid(..., indexing="xy") in pytorch. torch.meshgrid only allows "ij" indexing.
-    (If you're unsure what this means, safely skip trying to understand this, and run a tiny example!)
+    """Mimic np.meshgrid(..., indexing="xy") in PyTorch.
+    Explicitly specify 'indexing="xy"' for future compatibility.
 
     Args:
       tensor1 (torch.Tensor): Tensor whose elements define the first dimension of the returned meshgrid.
       tensor2 (torch.Tensor): Tensor whose elements define the second dimension of the returned meshgrid.
+
+    Returns:
+      tuple[torch.Tensor, torch.Tensor]: Meshgrid tensors with "xy" indexing.
     """
-    # TESTED
-    ii, jj = torch.meshgrid(tensor1, tensor2)
-    return ii.transpose(-1, -2), jj.transpose(-1, -2)
+    ii, jj = torch.meshgrid(tensor1, tensor2, indexing="xy")
+    return ii, jj
 
 def get_ray_bundle(height: int, width: int, focal_length: float, tform_cam2world: torch.Tensor):
   r"""Compute the bundle of rays passing through all pixels of an image (one ray per pixel).
