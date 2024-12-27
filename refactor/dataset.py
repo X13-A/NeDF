@@ -54,8 +54,8 @@ def load_dataset():
             camera_pos = cameras[BASE_CAMERA_LOCATION_ENTRY][index_value]
             camera_angle = cameras[BASE_CAMERA_ANGLE_ENTRY][index_value]
 
-            camera_pos = blender_to_opengl(torch.tensor[camera_pos])[0]
-            camera_angle = blender_to_opengl(torch.tensor[camera_angle])[0]
+            camera_pos = blender_to_opengl(torch.tensor([camera_pos]))[0]
+            camera_angle = blender_to_opengl(torch.tensor([camera_angle]))[0]
 
             camera_pos_torch = torch.tensor(camera_pos, dtype=torch.float32)
             camera_angle_torch = torch.tensor(camera_angle, dtype=torch.float32)
