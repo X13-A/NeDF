@@ -30,20 +30,23 @@ def estimate_distance(point_world : torch.tensor, dataset, device):
         
         # Sample depth map
         uv_coords = torch.tensor([ndc_coords[0] * 0.5 + 0.5, ndc_coords[1] * 0.5 + 0.5])
-        sampled_depth = depth_map[int(uv_coords[0] * depth_map.shape[0]), int(uv_coords[0] * depth_map.shape[1])]
+        print("UV coords:", uv_coords)
+        x, y = int(uv_coords[0] * depth_map.shape[0]), int(uv_coords[0] * depth_map.shape[1])
+        print("Sampled depth map coords:", x, y)
+        sampled_depth = depth_map[x, y]
         if sampled_depth < min_dist:
             min_dist = sampled_depth
     
     print(f"Estimated distance ({point_world}):", min_dist)
     return min_dist
 
-dataset = load_dataset()
-estimate_distance(torch.tensor([0, 0, -1], dtype=torch.float32), dataset, "cuda")
+# dataset = load_dataset()
+# estimate_distance(torch.tensor([0, 0, -1], dtype=torch.float32), dataset, "cuda")
 
-projection   = dataset[0][CAMERA_PROJECTION_ENTRY].clone()
-view_matrix  = dataset[0][CAMERA_TRANSFORM_ENTRY].clone()
-camera_pos   = dataset[0][CAMERA_POS_ENTRY].clone()
-camera_angle = dataset[0][CAMERA_ANGLE_ENTRY].clone()
+# projection   = dataset[0][CAMERA_PROJECTION_ENTRY].clone()
+# view_matrix  = dataset[0][CAMERA_TRANSFORM_ENTRY].clone()
+# camera_pos   = dataset[0][CAMERA_POS_ENTRY].clone()
+# camera_angle = dataset[0][CAMERA_ANGLE_ENTRY].clone()
 
 
 
