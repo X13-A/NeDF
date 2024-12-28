@@ -54,19 +54,22 @@ def load_dataset():
             camera_pos_torch = blender_to_opengl(torch.tensor(np.array([camera_pos])))[0]
             camera_angle_torch = blender_to_opengl(torch.tensor(np.array([camera_angle])))[0]
             
-            print(f"- Processing index {index_value}")
-            print(f"  - Blender Camera Position: {camera_pos}")
-            print(f"  - Blender Camera Angle: {camera_angle}")
-            print(f"  - OpenGL Camera Position: {camera_pos_torch}")
-            print(f"  - OpenGL Camera Angle: {camera_angle_torch}")
+            # print(f"- Processing index {index_value}")
+            # print(f"  - Blender Camera Position: {camera_pos}")
+            # print(f"  - Blender Camera Angle: {camera_angle}")
+            # print(f"  - OpenGL Camera Position: {camera_pos_torch}")
+            # print(f"  - OpenGL Camera Angle: {camera_angle_torch}")
 
             camera_pos_glm = glm.vec3(camera_pos_torch[0], camera_pos_torch[1], camera_pos_torch[2])
             camera_angle_glm = glm.vec3(camera_angle_torch[0], camera_angle_torch[1], camera_angle_torch[2])
             view_matrix_glm = make_view_matrix(camera_pos_glm, camera_angle_glm)
             view_matrix_torch = glm_mat4_to_torch(view_matrix_glm)
             
+            cam2world_glm = glm.inverse(view_matrix_glm)
+            cam2world_torch = glm_mat4_to_torch(cam2world_glm)
+
             # Generate ray bundle
-            ray_origins, ray_directions = get_ray_bundle(new_height, new_width, focal_length, view_matrix_torch)
+            ray_origins, ray_directions = get_ray_bundle(new_height, new_width, focal_length, cam2world_torch)
 
             # Compute projection matrix
             projection_matrix_glm = glm.perspective(glm.radians(FOV), new_width / new_height, near, far)
