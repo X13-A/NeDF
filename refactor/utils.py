@@ -96,6 +96,11 @@ def get_ray_bundle(height: int, width: int, focal_length: float, tform_cam2world
                            ], dim=-1)
   ray_directions = torch.sum(directions[..., None, :] * tform_cam2world[:3, :3], dim=-1)
   ray_origins = tform_cam2world[:3, -1].expand(ray_directions.shape)
+
+  # HACK: Invert rays for proper use
+  # NOTE: Not sure why it is needed but the rays are inverted. Maybe it is the view matrix that has issues
+  ray_directions *= -1
+
   return ray_origins, ray_directions
 
 def glm_mat4_to_torch(m: glm.mat4) -> torch.Tensor:

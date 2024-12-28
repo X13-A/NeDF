@@ -48,10 +48,11 @@ print(f"Camera Position: {position}")
 print(f"Depth: {depth}")
 
 # TODO: Find out why it is negated
-hit_point = position - ray * depth
+ray = ray * torch.tensor([1, 1, 1])
+hit_point = position + ray * depth
 print(f"Hit Point: {hit_point}")
 
-point_world = position - ray * (depth)
+point_world = position + ray * (depth)
 print(f"Point World: {point_world}")
 
 def estimate_distance_simple(dataset, index, point_world):
@@ -95,7 +96,7 @@ def estimate_distance_simple(dataset, index, point_world):
     print(sampled_depth)
 
     # Compute distance from the camera to the point
-    camera_to_point_distance = torch.norm(camera_pos - point_world)
+    camera_to_point_distance = torch.norm(camera_pos - point_world[:3])
 
     # Compute the signed distance to geometry
     signed_distance = sampled_depth - camera_to_point_distance
