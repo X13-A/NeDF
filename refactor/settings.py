@@ -2,7 +2,7 @@ DATA_PATH = "./data/robot_orbital_bas"
 CAMERAS_PATH = f"{DATA_PATH}/cameras_attributes.npz"
 DEPTHS_PATH = f"{DATA_PATH}/depth"
 
-FOV = 30.0
+FOV = 1.0
 DEPTHMAP_SIZE_RESCALE = 100/1920
 
 # BASE DATASET STRUCTURE

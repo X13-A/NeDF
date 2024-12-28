@@ -21,7 +21,7 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
         
         # Transform to camera space
         point_camera = view_matrix @ point_world_h
-        print(f"Camera Space: {point_camera}")
+        # print(f"Camera Space: {point_camera}")
         if point_camera[2] <= 0:  # Behind the camera
             continue
 
@@ -29,7 +29,7 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
         point_clip = projection @ point_camera
         ndc_coords = point_clip[:3] / point_clip[3]
 
-        print(f"NDC Coords: {ndc_coords}")
+        # print(f"NDC Coords: {ndc_coords}")
 
         # Check if the point is within the valid NDC range
         if not (-1 <= ndc_coords[0] <= 1 and -1 <= ndc_coords[1] <= 1 and -1 <= ndc_coords[2] <= 1):
