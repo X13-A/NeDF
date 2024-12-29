@@ -10,7 +10,7 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
     farthest_negative = float('-inf')
     
     for key, value in dataset.items():
-        depth_map = value[DEPTH_MAP_ENTRY]
+        depth_map = value[DEPTH_MAP_ENTRY].to(device)
         camera_pos = value[CAMERA_POS_ENTRY].to(device)
         view_matrix = value[CAMERA_TRANSFORM_ENTRY].to(device)
         projection = value[CAMERA_PROJECTION_ENTRY].to(device)
@@ -29,19 +29,22 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
         point_clip = projection @ point_camera
         ndc_coords = point_clip[:3] / point_clip[3]
 
-        # print(f"NDC Coords: {ndc_coords}")
+        print(f"NDC Coords: {ndc_coords}")
 
         # Check if the point is within the valid NDC range
-        if not (-1 <= ndc_coords[0] <= 1 and -1 <= ndc_coords[1] <= 1 and -1 <= ndc_coords[2] <= 1):
+        if not (-1 <= ndc_coords[0] <= 1 and -1 <= ndc_coords[1] <= 1 and -1 <= ndc_coords[2] <= 1 + 1e-3):
             continue
 
         # Map NDC to depth map coordinates
         uv_coords = torch.tensor([(ndc_coords[0] * 0.5 + 0.5), (ndc_coords[1] * 0.5 + 0.5)], device=device)
-        x = int(uv_coords[1] * depth_map.shape[0])  # Y-coordinate maps to row
-        y = int(uv_coords[0] * depth_map.shape[1])  # X-coordinate maps to column
+        x = int(uv_coords[1] * depth_map.shape[1])  # Y-coordinate maps to row
+        y = int(uv_coords[0] * depth_map.shape[0])  # X-coordinate maps to column
+
+        print(f"[{key}] UV COORDS:\n {uv_coords}")
+        print(f"[{key}] X, Y COORDS:\n {x}, {y}")
 
         # Sample the depth map
-        sampled_depth = depth_map[x, y]
+        sampled_depth = depth_map[y, x]
 
         # Compute distance from the camera to the point
         camera_to_point_distance = torch.norm(camera_pos - point_world)
@@ -69,5 +72,92 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
         # No valid distance found
         final_distance = None
 
-    print(f"Estimated distance ({point_world}): {final_distance}")
+    print(f"- Estimated distance: {final_distance}")
     return final_distance
+
+import glm
+import numpy as np
+import torch
+from settings import *
+from dataset import load_dataset
+from utils import *
+
+def estimate_distances(points_world: torch.Tensor, dataset, device):
+    num_points = points_world.shape[0]
+    dtype = torch.float32  # Ensure consistent data types
+    final_distances = torch.full((num_points,), float('nan'), device=device, dtype=dtype)
+    
+    # Convert points to homogeneous coordinates
+    points_world_h = torch.cat([points_world, torch.ones((num_points, 1), device=device, dtype=dtype)], dim=1)
+    points_world_h = points_world_h.to(device)
+
+    closest_positives = torch.full((num_points,), float('inf'), device=device, dtype=dtype)
+    farthest_negatives = torch.full((num_points,), float('-inf'), device=device, dtype=dtype)
+
+    for key, value in dataset.items():
+        depth_map = value[DEPTH_MAP_ENTRY].to(device, dtype=dtype)
+        camera_pos = value[CAMERA_POS_ENTRY].to(device, dtype=dtype)
+        view_matrix = value[CAMERA_TRANSFORM_ENTRY].to(device, dtype=dtype)
+        projection = value[CAMERA_PROJECTION_ENTRY].to(device, dtype=dtype)
+
+        # Transform to camera space
+        points_camera = torch.matmul(points_world_h, view_matrix.T)
+
+        # Filter points behind the camera
+        valid_mask = points_camera[:, 2] > 0
+        if not valid_mask.any():
+            continue
+
+        valid_points_camera = points_camera[valid_mask]
+
+        # Transform to clip space and normalize to NDC
+        points_clip = torch.mm(valid_points_camera, projection.T)
+        ndc_coords = points_clip[:, :3] / points_clip[:, 3:4]
+
+        # Check if points are within the valid NDC range
+        ndc_mask = (
+            (ndc_coords[:, 0] >= -1) & (ndc_coords[:, 0] <= 1) &
+            (ndc_coords[:, 1] >= -1) & (ndc_coords[:, 1] <= 1) &
+            (ndc_coords[:, 2] >= -1) & (ndc_coords[:, 2] <= 1 + 1e-3)
+        )
+        if not ndc_mask.any():
+            continue
+
+        valid_ndc_coords = ndc_coords[ndc_mask]
+        valid_indices = torch.where(valid_mask)[0][ndc_mask]
+
+        # Map NDC to depth map coordinates
+        uv_coords = torch.stack([
+            (valid_ndc_coords[:, 0] * 0.5 + 0.5),
+            (valid_ndc_coords[:, 1] * 0.5 + 0.5)
+        ], dim=1)
+        x = (uv_coords[:, 1] * depth_map.shape[1]).long()
+        y = (uv_coords[:, 0] * depth_map.shape[0]).long()
+
+        # Sample depths for all points
+        sampled_depths = depth_map[y, x]
+
+        # Compute distance from the camera to the points
+        camera_to_points_distance = torch.norm(camera_pos - points_world[valid_indices, :], dim=1)
+
+        # Compute signed distances
+        signed_distances = sampled_depths - camera_to_points_distance
+
+        # Update positive and negative distances separately
+        closest_positives[valid_indices] = torch.min(closest_positives[valid_indices], signed_distances)
+        farthest_negatives[valid_indices] = torch.max(farthest_negatives[valid_indices], signed_distances)
+
+    # Decide the final distances for all points
+    for i in range(num_points):
+        if closest_positives[i] != float('inf') and farthest_negatives[i] != float('-inf'):
+            # Both positive and negative distances exist
+            final_distances[i] = closest_positives[i] if abs(closest_positives[i]) < abs(farthest_negatives[i]) else farthest_negatives[i]
+        elif closest_positives[i] != float('inf'):
+            # Only positive distances exist
+            final_distances[i] = closest_positives[i]
+        elif farthest_negatives[i] != float('-inf'):
+            # Only negative distances exist
+            final_distances[i] = farthest_negatives[i]
+
+    print(f"Estimated distances for points: {final_distances}")
+    return final_distances
