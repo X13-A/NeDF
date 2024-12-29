@@ -43,6 +43,9 @@ def load_dataset():
             new_width = int(depth_map.shape[1] * DEPTHMAP_SIZE_RESCALE)
             new_height = int(depth_map.shape[0] * DEPTHMAP_SIZE_RESCALE)
             resized_depth_map = cv2.resize(depth_map, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            
+            # Convert depth map to torch tensor
+            resized_depth_map = torch.tensor(resized_depth_map, dtype=torch.float32)
 
             # Compute focal length from FOV
             focal_length = fov_to_focal_length(FOV, new_width)
