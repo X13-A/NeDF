@@ -21,6 +21,8 @@ ray = rays[y, x]
 
 positions = dataset[index][RAYS_ENTRY][RAY_ORIGINS_ENTRY]
 position = positions[y, x]
+print(f"Camera Position: {position}")
+print(f"Depth: {depth}")
 
 ray = ray * torch.tensor([1, 1, 1])
 point_world = position + ray * (depth)
@@ -29,10 +31,10 @@ point_world = position + ray * (depth)
 # Define a set of test points in world space (torch.Tensor of shape [N, 3])
 test_points = torch.stack([
     point_world,
-    point_world + torch.tensor([20.0, 0.0, 0.0]),
-    point_world - torch.tensor([20.0, 0.0, 0.0]),
-    point_world + torch.tensor([0.0, 20.0, 0.0]),
-    point_world - torch.tensor([0.0, 20.0, 0.0])
+    # point_world + torch.tensor([20.0, 0.0, 0.0]),
+    # point_world - torch.tensor([20.0, 0.0, 0.0]),
+    # point_world + torch.tensor([0.0, 20.0, 0.0]),
+    # point_world - torch.tensor([0.0, 20.0, 0.0])
 ], dim=0).to(device='cuda:0')
 
 # Estimate distances for the test points
@@ -45,3 +47,7 @@ print("\nEstimating distance (tensor)...")
 estimate_distances(test_points, dataset, device)
 
 print("Finished test 2.\n\n")
+
+# plot the depth map
+plt.imshow(depth_map)
+plt.show()
