@@ -1,14 +1,16 @@
 import numpy as np
-import os
 import re
 import torch
-import cv2
 from settings import *
 from utils import blender_to_opengl, fov_to_focal_length, glm_mat4_to_torch, make_view_matrix, pos_angle_to_tform_cam2world, get_ray_bundle
-
+import imageio.v3 as iio
 import torch
 import numpy as np
 import glm
+
+import os
+os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
+import cv2
 
 def load_dataset():
     # Load camera transforms
@@ -38,6 +40,7 @@ def load_dataset():
             # Load the depth map
             depth_map_path = os.path.join(DEPTHS_PATH, filename)
             depth_map = cv2.imread(depth_map_path, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            depth_map = depth_map[:, :, 0] # Keep only R channel
 
             # Resize the depth map
             new_width = int(depth_map.shape[1] * DEPTHMAP_SIZE_RESCALE)
@@ -47,8 +50,11 @@ def load_dataset():
             # Convert depth map to torch tensor
             resized_depth_map = torch.tensor(resized_depth_map, dtype=torch.float32)
 
+            # Get FOV
+            fov = cameras[BASE_CAMERA_FOV_ENTRY][index_value]
+            
             # Compute focal length from FOV
-            focal_length = fov_to_focal_length(FOV, new_width)
+            focal_length = fov_to_focal_length(fov, new_width)
 
             # Convert position and angle to transformation matrix
             camera_pos = cameras[BASE_CAMERA_LOCATION_ENTRY][index_value]
