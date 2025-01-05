@@ -1,4 +1,4 @@
-DATA_PATH = "./data/robot_orbital_bas"
+DATA_PATH = "./data/alex"
 CAMERAS_PATH = f"{DATA_PATH}/cameras_attributes.npz"
 DEPTHS_PATH = f"{DATA_PATH}/depth"
 
@@ -8,6 +8,8 @@ DEPTHMAP_SIZE_RESCALE = 100/1920
 # BASE DATASET STRUCTURE
 BASE_CAMERA_LOCATION_ENTRY = "cameras_locations"
 BASE_CAMERA_ANGLE_ENTRY = "cameras_angle"
+BASE_CAMERA_FOV_ENTRY = "cameras_fovs"
+BASE_CAMERA_FOCAL_LENGTH_ENTRY = "cameras_focal_lengths"
 
 # TARGET DATASET STRUCTURE
 RAYS_ENTRY = "rays"
