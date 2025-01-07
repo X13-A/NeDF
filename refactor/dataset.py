@@ -12,7 +12,7 @@ import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import cv2
 
-def load_dataset():
+def load_dataset(verbose = False):
     # Load camera transforms
     cameras = np.load(CAMERAS_PATH)
 
@@ -30,12 +30,6 @@ def load_dataset():
         index = re.search(r'\d+', filename)
         if index:
             index_value = int(index.group())
-
-            # Ignore invalid entries
-            angle_norm = np.linalg.norm(cameras[BASE_CAMERA_ANGLE_ENTRY][index_value])
-            if angle_norm < 1 - 1e-6:
-                print(f"- Skipping index {index_value} due to invalid angle norm: {angle_norm}")
-                continue
 
             # Load the depth map
             depth_map_path = os.path.join(DEPTHS_PATH, filename)
@@ -63,11 +57,12 @@ def load_dataset():
             camera_pos_torch = blender_to_opengl(torch.tensor(np.array([camera_pos])))[0]
             camera_angle_torch = blender_to_opengl(torch.tensor(np.array([camera_angle])))[0]
             
-            # print(f"- Processing index {index_value}")
-            # print(f"  - Blender Camera Position: {camera_pos}")
-            # print(f"  - Blender Camera Angle: {camera_angle}")
-            # print(f"  - OpenGL Camera Position: {camera_pos_torch}")
-            # print(f"  - OpenGL Camera Angle: {camera_angle_torch}")
+            if verbose:
+                print(f"- Processing index {index_value}")
+                print(f"  - Blender Camera Position: {camera_pos}")
+                print(f"  - Blender Camera Angle: {camera_angle}")
+                print(f"  - OpenGL Camera Position: {camera_pos_torch}")
+                print(f"  - OpenGL Camera Angle: {camera_angle_torch}")
 
             camera_pos_glm = glm.vec3(camera_pos_torch[0], camera_pos_torch[1], camera_pos_torch[2])
             camera_angle_glm = glm.vec3(camera_angle_torch[0], camera_angle_torch[1], camera_angle_torch[2])
