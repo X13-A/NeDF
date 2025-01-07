@@ -82,7 +82,7 @@ from settings import *
 from dataset import load_dataset
 from utils import *
 
-def estimate_distances(points_world: torch.Tensor, dataset, device):
+def estimate_distances(points_world: torch.Tensor, dataset, device, verbose = False):
     num_points = points_world.shape[0]
     dtype = torch.float32  # Ensure consistent data types
     final_distances = torch.full((num_points,), float('nan'), device=device, dtype=dtype)
@@ -102,23 +102,27 @@ def estimate_distances(points_world: torch.Tensor, dataset, device):
 
         # Transform to camera space
         points_camera = torch.matmul(points_world_h, view_matrix.T)
-
+        
         # Filter points behind the camera
         valid_mask = points_camera[:, 2] > 0
         if not valid_mask.any():
             continue
 
         valid_points_camera = points_camera[valid_mask]
+        if verbose: print(f"Valid Points (Camera Space): {valid_points_camera}")
 
-        # Transform to clip space and normalize to NDC
+        # Transform to clip space
         points_clip = torch.mm(valid_points_camera, projection.T)
+        if verbose: print(f"Points (Clip Space): {points_clip}")
+
+        # Normalize to NDC
         ndc_coords = points_clip[:, :3] / points_clip[:, 3:4]
+        if verbose: print(f"Points (NDC): {ndc_coords}")
 
         # Check if points are within the valid NDC range
         ndc_mask = (
             (ndc_coords[:, 0] >= -1) & (ndc_coords[:, 0] <= 1) &
-            (ndc_coords[:, 1] >= -1) & (ndc_coords[:, 1] <= 1) &
-            (ndc_coords[:, 2] >= -1) & (ndc_coords[:, 2] <= 1 + 1e-3)
+            (ndc_coords[:, 1] >= -1) & (ndc_coords[:, 1] <= 1)
         )
         if not ndc_mask.any():
             continue
@@ -133,9 +137,12 @@ def estimate_distances(points_world: torch.Tensor, dataset, device):
         ], dim=1)
         x = (uv_coords[:, 1] * depth_map.shape[1]).long()
         y = (uv_coords[:, 0] * depth_map.shape[0]).long()
+        if verbose: print(f"UV COORDS:\n {uv_coords}")
+        if verbose: print(f"X, Y COORDS:\n {x}, {y}")
 
         # Sample depths for all points
         sampled_depths = depth_map[y, x]
+        if verbose: print(f"Sampled Depths: {sampled_depths}")
 
         # Compute distance from the camera to the points
         camera_to_points_distance = torch.norm(camera_pos - points_world[valid_indices, :], dim=1)
