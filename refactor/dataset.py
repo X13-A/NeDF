@@ -66,6 +66,7 @@ def load_dataset(verbose = False):
                 camera_pos_glm = glm.vec3(camera_pos_torch[0], camera_pos_torch[1], camera_pos_torch[2])
                 camera_forward_glm = glm.vec3(camera_forward_torch[0], camera_forward_torch[1], camera_forward_torch[2])
 
+                # TODO: Use and test new view matrix
                 view_matrix_glm = make_view_matrix(camera_pos_glm, camera_forward_glm)
                 view_matrix_torch = glm_mat4_to_torch(view_matrix_glm)
                 
