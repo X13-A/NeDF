@@ -34,7 +34,7 @@ print(f"Point (world): {point_world}")
 
 # Define a set of test points in world space (torch.Tensor of shape [N, 3])
 # TODO: Why is it not working with offset points ? Maybe check z value of NDC coords
-offset = 0.01
+offset = 0.001
 test_points = torch.stack([
     point_world,
     point_world + torch.tensor([1.0, 0.0, 0.0]) * offset,
@@ -45,7 +45,7 @@ test_points = torch.stack([
 print(f"Test points (world):\n{test_points}")
 
 # filter out all entries excpet 0 in dataset
-# dataset = {index: dataset[index]}
+dataset = {index: dataset[index]}
 
 print("\nEstimating distance (tensor)...")
 estimate_distances(test_points, dataset, device)
