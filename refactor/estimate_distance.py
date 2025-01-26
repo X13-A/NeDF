@@ -82,6 +82,53 @@ from settings import *
 from dataset import load_dataset
 from utils import *
 
+def check_visibility(points_world: torch.Tensor, dataset, device, verbose=False):
+    num_points = points_world.shape[0]
+    dtype = torch.float32
+    visibility = torch.zeros((num_points,), dtype=torch.bool, device=device)
+
+    # Convert points to homogeneous coordinates
+    points_world_h = torch.cat([points_world, torch.ones((num_points, 1), device=device, dtype=dtype)], dim=1)
+    points_world_h = points_world_h.to(device)
+
+    for key, value in dataset.items():
+        print()
+        print(f"### {key} ###")
+        view_matrix = value[CAMERA_TRANSFORM_ENTRY].to(device, dtype=dtype)
+        projection = value[CAMERA_PROJECTION_ENTRY].to(device, dtype=dtype)
+
+        # Transform to camera space
+        points_camera = torch.matmul(points_world_h, view_matrix.T)
+        if verbose: print(f"Points (Camera Space): {points_camera}")
+
+        # Filter points behind the camera
+        valid_mask = points_camera[:, 2] < 0
+        if verbose: print(f"Valid mask (1): {valid_mask}")
+        if not valid_mask.any():
+            continue
+
+        valid_points_camera = points_camera[valid_mask]
+        if verbose: print(f"Valid Points (Camera Space): {valid_points_camera}")
+
+        # Transform to clip space
+        points_clip = torch.matmul(valid_points_camera, projection.T)
+        if verbose: print(f"Points (Clip Space): {points_clip}")
+
+        # Normalize to NDC
+        ndc_coords = points_clip[:, :3] / points_clip[:, 3:4]
+        if verbose: print(f"Points (NDC): {ndc_coords}")
+
+        # Check if points are within the valid NDC range
+        ndc_mask = (
+            (ndc_coords[:, 0] >= -1) & (ndc_coords[:, 0] <= 1) &
+            (ndc_coords[:, 1] >= -1) & (ndc_coords[:, 1] <= 1)
+        )
+
+        valid_indices = torch.where(valid_mask)[0][ndc_mask]
+        visibility[valid_indices] = True
+
+    return visibility
+
 def estimate_distances(points_world: torch.Tensor, dataset, device, verbose = False):
     num_points = points_world.shape[0]
     dtype = torch.float32  # Ensure consistent data types
