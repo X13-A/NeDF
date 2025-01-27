@@ -16,31 +16,11 @@ arrow_mesh_gl = pv.read("models/Arrow0Yaw0Pitch0Roll_gl.obj")
 # Create an interactive PyVista plotter
 plotter = pv.Plotter()
 
-def create_rotation_matrix_from_blender(yaw: float, pitch: float, roll: float):
-    """
-    Create a 4x4 rotation matrix using yaw, pitch, and roll (in degrees).
-    Takes as input blender yaw pitch roll, and outputs the matching OpenGL rotation matrix
-    """
-    # Start with an identity matrix
-    rotation_matrix = glm.mat4(1.0)
-    yaw_rad = math.radians(yaw)
-    pitch_rad = math.radians(pitch)
-    roll_rad = math.radians(roll)
+# camera_pos = 
+# camera_angle = 
+# transform_matrix = create_rotation_matrix_from_blender(yaw=30, pitch=45, roll=60, position=torch.tensor[])
 
-    # Apply rotations in weird order
-    rotation_matrix = glm.rotate(rotation_matrix, yaw_rad, glm.vec3(0, 1, 0))
-    rotation_matrix = glm.rotate(rotation_matrix, roll_rad, glm.vec3(1, 0, 0))
-    rotation_matrix = glm.rotate(rotation_matrix, -pitch_rad, glm.vec3(0, 0, 1))
-
-    return rotation_matrix
-
-transform_matrix = create_rotation_matrix_from_blender(yaw=30, pitch=45, roll=60)
-revert_matrix = glm.inverse(transform_matrix)
-
-arrow_mesh_gl.transform(np.array(transform_matrix))
-# arrow_mesh_gl.transform(np.array(revert_matrix))
-
-plotter.add_mesh(arrow_mesh_gl, color="lightblue", show_edges=True)
+# plotter.add_mesh(arrow_mesh_gl, color="lightblue", show_edges=True)
 
 # Plot origin
 origin = pv.Sphere(radius=0.25, center=np.array([0, 0 , 0]))
@@ -50,7 +30,30 @@ plotter.add_mesh(origin, color="blue")
 for index, data in dataset.items():
     # Get camera position and direction in Blender's coordinate system
     camera_pos = data[CAMERA_POS_ENTRY] 
+    camera_angle = data[CAMERA_ANGLE_BLENDER_ENTRY]
+    
+    print(f"Camera {index}:")
+    print(camera_angle)
+    transform = create_transform_matrix_from_blender(yaw=camera_angle[0], pitch=camera_angle[1], roll=camera_angle[2], position=camera_pos)
+    transform = glm_mat4_to_torch(transform)
+    right_vector_from_transform = transform[:3, 0]
+    up_vector_from_transform = transform[:3, 1]
+    forward_vector_from_transform = transform[:3, 2]
+    camera_pos_from_transform = transform[:3, 3]
+
+    # Ajouter des flèches pour chaque vecteur
+    scale = 2.0  # Échelle des vecteurs
+
+    plotter.add_arrows(camera_pos_from_transform.numpy(), right_vector_from_transform.numpy() * scale, color="red", mag=1, label="Right")
+    plotter.add_arrows(camera_pos_from_transform.numpy(), up_vector_from_transform.numpy() * scale, color="green", mag=1, label="Up")
+    plotter.add_arrows(camera_pos_from_transform.numpy(), forward_vector_from_transform.numpy() * scale, color="blue", mag=1, label="Forward")
+
+    # TODO: Apply transform to camera_rays_blender and see if they align with camera_rays
+    camera_rays_blender = data[RAY_DIRECTIONS_BLENDER_ENTRY].numpy()
     camera_rays = data[RAY_DIRECTIONS_ENTRY].numpy()
+    print(transform)
+    print()
+
 
     # Define the grid size for arrows
     grid_size = 10
@@ -60,18 +63,20 @@ for index, data in dataset.items():
 
     # Add a text label at the camera position
     plotter.add_point_labels([camera_pos.numpy()], [f"Camera {index}"], point_size=20, font_size=12, name=f"label_{index}")
+    # plotter.add_point_labels([camera_pos_from_transform.numpy()], [f"Camera {index} (transform)"], point_size=20, font_size=12, name=f"label_{index}")
 
     # Add the camera's grid of forward direction arrows
-    forward_scale = 5.0  # Scale for the forward direction
-    arrow_scale = 0.2  # Keep the arrow shafts thin
-    for i in range(0, ray_height, step_h):
-        for j in range(0, ray_width, step_w):
-            ray_direction = camera_rays[i, j]  # Get the ray direction
-            plotter.add_arrows(camera_pos, ray_direction, color="purple", mag=forward_scale)
+    # forward_scale = 5.0  # Scale for the forward direction
+    # arrow_scale = 0.2  # Keep the arrow shafts thin
+    # for i in range(0, ray_height, step_h):
+    #     for j in range(0, ray_width, step_w):
+    #         ray_direction = camera_rays[i, j]  # Get the ray direction
+    #         plotter.add_arrows(camera_pos, ray_direction, color="purple", mag=forward_scale)
 
 
 # Show the plot with axes
 plotter.show_axes()
 plotter.show()
 
-# TODO: Use angles as forward vectors don't preserve all rotations
+# TODO: Continue debugging transform matrix
+# TODO: Maybe check yaw pitch roll and test it by hand

@@ -2,7 +2,7 @@ import numpy as np
 import re
 import torch
 from settings import *
-from utils import blender_to_opengl, glm_mat4_to_torch, make_view_matrix
+from utils import *
 import torch
 import numpy as np
 import glm
@@ -51,23 +51,21 @@ def load_dataset(verbose = False):
                 # Convert position and angle to transformation matrix
                 base_camera_pos = cameras[BASE_CAMERA_LOCATION_ENTRY][index_value]
                 
-                # TODO: Increase precision by using BASE_CAMERA_ANGLE instead
-                base_camera_forward = base_camera_rays[base_camera_rays.shape[0] // 2, base_camera_rays.shape[1] // 2]
-                camera_rays_torch = torch.tensor(resized_camera_rays)
-                camera_pos_torch = torch.tensor(base_camera_pos)
-                camera_forward_torch = torch.tensor(base_camera_forward)
+                camera_rays_blender_torch = torch.tensor(resized_camera_rays)
+                camera_pos_blender_torch = torch.tensor(base_camera_pos)
+
+                base_camera_angle = cameras[BASE_CAMERA_ANGLE_ENTRY][index_value]
+                camera_angle_blender_torch = torch.tensor(base_camera_angle)
+                print(camera_angle_blender_torch)
 
                 # Convert to OpenGL coordinate system
-                camera_pos_torch = blender_to_opengl(camera_pos_torch)
-                camera_rays_torch = blender_to_opengl(camera_rays_torch)
-                camera_forward_torch = blender_to_opengl(camera_forward_torch)
-
-                print(camera_forward_torch)
-                camera_pos_glm = glm.vec3(camera_pos_torch[0], camera_pos_torch[1], camera_pos_torch[2])
-                camera_forward_glm = glm.vec3(camera_forward_torch[0], camera_forward_torch[1], camera_forward_torch[2])
+                camera_pos_gl_torch = blender_to_opengl(camera_pos_blender_torch)
+                camera_rays_gl_torch = blender_to_opengl(camera_rays_blender_torch)
 
                 # TODO: Use and test new view matrix
-                view_matrix_glm = make_view_matrix(camera_pos_glm, camera_forward_glm)
+                # TODO: Double check if need to convert position to OpenGL before view matrix (probably)
+                # view_matrix_glm = make_view_matrix(camera_angle_blender_torch[0], camera_angle_blender_torch[1], camera_angle_blender_torch[2], camera_pos_gl_torch)
+                view_matrix_glm = create_transform_matrix_from_blender(camera_angle_blender_torch[0], camera_angle_blender_torch[1], camera_angle_blender_torch[2], camera_pos_blender_torch)
                 view_matrix_torch = glm_mat4_to_torch(view_matrix_glm)
                 
                 # Compute projection matrix
@@ -78,15 +76,17 @@ def load_dataset(verbose = False):
                 # Store in the dataset
                 dataset[index_value] = {
                     DEPTH_MAP_ENTRY: resized_depth_map,
-                    RAY_DIRECTIONS_ENTRY: camera_rays_torch,
-                    CAMERA_POS_ENTRY: camera_pos_torch,
-                    CAMERA_FORWARD_ENTRY: camera_forward_torch,
+                    RAY_DIRECTIONS_ENTRY: camera_rays_gl_torch,
+                    RAY_DIRECTIONS_BLENDER_ENTRY: camera_rays_blender_torch,
+                    CAMERA_POS_ENTRY: camera_pos_gl_torch,
+                    CAMERA_POS_BLENDER_ENTRY: camera_pos_blender_torch,
+                    CAMERA_ANGLE_BLENDER_ENTRY: camera_angle_blender_torch,
                     CAMERA_TRANSFORM_ENTRY: view_matrix_torch,
                     CAMERA_PROJECTION_ENTRY: projection_matrix_torch
                 }
                 print("success")
-        except:
-            print("Error")
+        except Exception as e:
+            print(f"Error: {e}")
 
     dataset_size = len(dataset)
     print(f"Successfully generated {dataset_size} entries!")
