@@ -46,6 +46,34 @@ def make_view_matrix(position: glm.vec3, yaw: float, pitch: float, roll: float) 
 
     return view_matrix
 
+
+def create_transform_matrix_from_blender(yaw: float, pitch: float, roll: float, position : torch.tensor):
+    """
+    Create a 4x4 rotation matrix using yaw, pitch, and roll (in radians).
+    Takes as input blender yaw pitch roll, and outputs the matching OpenGL rotation matrix
+    """
+    if not isinstance(position, torch.Tensor) or position.shape != (3,):
+        raise ValueError("La position doit être un tensor PyTorch de forme (3,)")
+
+    # Start with an identity matrix
+    transformation_matrix = glm.mat4(1.0)
+    # yaw = math.radians(yaw)
+    # pitch = math.radians(pitch)
+    # roll = math.radians(roll)
+
+    # Apply rotations in weird order
+    transformation_matrix  = glm.rotate(transformation_matrix , yaw, glm.vec3(0, 1, 0))
+    transformation_matrix  = glm.rotate(transformation_matrix , roll, glm.vec3(1, 0, 0))
+    transformation_matrix  = glm.rotate(transformation_matrix , -pitch, glm.vec3(0, 0, 1))
+
+    # Translate
+    # position = blender_to_opengl(position)
+    position_glm = glm.vec3(position[0].item(), position[1].item(), position[2].item())
+    transformation_matrix[3] = glm.vec4(position_glm, 1.0)
+
+    return transformation_matrix
+
+
 def blender_to_opengl(vecs_blender: torch.Tensor) -> torch.Tensor:
     x_b = vecs_blender[..., 0]
     y_b = vecs_blender[..., 1]
@@ -77,23 +105,3 @@ def blender_to_opengl_euler(blender_euler: torch.Tensor) -> torch.Tensor:
     pitch_o = pitch_b
     roll_o = -yaw_b
     return torch.stack([yaw_o, pitch_o, roll_o], dim=-1)
-
-def make_view_matrix(pos: glm.vec3, euler_rad: glm.vec3) -> glm.mat4:
-    """Build a view matrix with Euler angles (pitch, yaw, roll) in radians.
-       We'll assume the order: X (pitch), Y (yaw), Z (roll).
-       The camera looks 'down +Z' after these rotations if angles=0.
-    """
-    view = glm.mat4(1.0)
-
-    # Apply rotations in reverse order (camera space):
-    # 1) Rotate by -pitch about X
-    view = glm.rotate(view, -euler_rad.x, glm.vec3(1, 0, 0))
-    # 2) Rotate by -yaw about Y
-    view = glm.rotate(view, -euler_rad.y, glm.vec3(0, 1, 0))
-    # 3) Rotate by -roll about Z
-    view = glm.rotate(view, -euler_rad.z, glm.vec3(0, 0, 1))
-
-    # Translate by +camera_position (because camera looks down +Z)
-    view = glm.translate(view, pos)
-
-    return view

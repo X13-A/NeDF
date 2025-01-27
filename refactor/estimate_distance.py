@@ -75,13 +75,6 @@ def estimate_distance(point_world: torch.Tensor, dataset, device):
     print(f"- Estimated distance: {final_distance}")
     return final_distance
 
-import glm
-import numpy as np
-import torch
-from settings import *
-from dataset import load_dataset
-from utils import *
-
 def check_visibility(points_world: torch.Tensor, dataset, device, verbose=False):
     num_points = points_world.shape[0]
     dtype = torch.float32

@@ -5,57 +5,38 @@ from utils import *
 from estimate_distance import *
 # Load dataset
 dataset = load_dataset()
-# dataset = {1: dataset[1]}
+dataset = {1: dataset[1]}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load the robot mesh
 robot_mesh = pv.read("models/Robot Rouen Axes.obj")
-robot_mesh_blender = pv.read("models/Robot Rouen Axes Blender.obj")
-
-arrow_mesh_blender = pv.read("models/Arrow30Yaw45Pitch60Roll.obj")
-arrow_mesh_gl = pv.read("models/Arrow30Yaw45Pitch60Roll_OpenGL.obj")
 
 # Create an interactive PyVista plotter
 plotter = pv.Plotter()
 
-# Add the robot mesh
-# plotter.add_mesh(robot_mesh, color="lightblue", show_edges=True)
-# plotter.add_mesh(robot_mesh_blender, color="lightblue", show_edges=True)
+plotter.add_mesh(robot_mesh, color="lightblue", show_edges=True)
 
-# transformation_matrix = np.array([
-#     [1, 0, 0, 1],  # Rotate around X and translate 1 unit in X
-#     [0, 0, -1, 2],  # Rotate around Y and translate 2 units in Y
-#     [0, 1, 0, 3],  # Rotate around Z and translate 3 units in Z
-#     [0, 0, 0, 1],  # Homogeneous coordinate
-# ])
-# arrow_mesh_blender.transform(transformation_matrix)
-
-# plotter.add_mesh(arrow_mesh_blender, color="lightblue", show_edges=True)
-plotter.add_mesh(arrow_mesh_blender, color="lightblue", show_edges=True)
-
-
-# def generate_random_points(num_points, bounds):
-#     return torch.FloatTensor(
-#         np.random.uniform(bounds[0], bounds[1], size=(num_points, 3))
-#     )
+def generate_random_points(num_points, bounds):
+    return torch.FloatTensor(
+        np.random.uniform(bounds[0], bounds[1], size=(num_points, 3))
+    )
 
 # Generate random points
-# spread = 20
-# bounds = (-spread, spread)
-# points_world = generate_random_points(500, bounds).to(device)
-# points_world[:, 1] = -5
-# # points_world = torch.tensor([[4.2, 5, 0]]).to(device)
+spread = 20
+bounds = (-spread, spread)
+points_world = generate_random_points(500, bounds).to(device)
+points_world[:, 1] = -5
+points_world = torch.tensor([[0, 5, 0]]).to(device)
 
-# visibilities = check_visibility(points_world, dataset, device, False)
+visibilities = check_visibility(points_world, dataset, device, True)
 
-# # Ajouter des sphères au plotter en fonction des distances
-# for i, point in enumerate(points_world.cpu().numpy()):
-#     visibility = visibilities[i].item()
-#     if visibility:
-#         color = "blue" if visibility else "red"
-#         sphere = pv.Sphere(radius=0.1, center=point)
-#         plotter.add_mesh(sphere, color=color)
+# Ajouter des sphères au plotter en fonction des distances
+for i, point in enumerate(points_world.cpu().numpy()):
+    visibility = visibilities[i].item()
+    color = "blue" if visibility else "red"
+    sphere = pv.Sphere(radius=0.1, center=point)
+    plotter.add_mesh(sphere, color=color)
 
 # Add spheres and local coordinate system axes for cameras
 for index, data in dataset.items():
