@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 device = 'cuda:0'
 
 dataset = load_dataset()
-index = 1
+index = 0
 
 depth_map = dataset[index][DEPTH_MAP_ENTRY]
 plt.imshow(depth_map)

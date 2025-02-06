@@ -49,3 +49,43 @@ class NeDFModel(nn.Module):
 def initialize_weights(layer):
     if isinstance(layer, nn.Linear):
         nn.init.uniform_(layer.weight, 0.0, 1e-2)  # Small uniform initialization
+
+class SimpleUDFModel(nn.Module):
+    def __init__(self, input_dim=3, hidden_dim=256, L=5):
+        super(SimpleUDFModel, self).__init__()
+        self.L = L
+        self.input_dim = input_dim
+        self.encoded_dim = input_dim + 2 * input_dim * L  # Adjust input size after encoding
+
+        # Input layer
+        self.input_layer = nn.Linear(self.encoded_dim, hidden_dim)
+
+        # Hidden layers
+        self.hidden1 = nn.Linear(hidden_dim, hidden_dim)
+        self.hidden2 = nn.Linear(hidden_dim, hidden_dim)
+
+        # Output layer
+        self.output_layer = nn.Linear(hidden_dim, 1)
+
+    def positional_encoding(self, x):
+        """Applies NeRF-style positional encoding to the input."""
+        encoded = [x]
+        for i in range(self.L):
+            frequency = 2.0 ** i * torch.pi
+            encoded.append(torch.sin(frequency * x))
+            encoded.append(torch.cos(frequency * x))
+        return torch.cat(encoded, dim=-1)
+
+    def forward(self, x):
+        encoded_x = self.positional_encoding(x)
+
+        x = F.relu(self.input_layer(encoded_x))
+        x = F.relu(self.hidden1(x))
+        x = F.relu(self.hidden2(x))
+
+        return self.output_layer(x)  # No activation in final layer
+
+def initialize_weights(layer):
+    if isinstance(layer, nn.Linear):
+        nn.init.xavier_uniform_(layer.weight)
+        nn.init.zeros_(layer.bias)

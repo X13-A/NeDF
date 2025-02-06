@@ -9,7 +9,7 @@ from settings import *
 # Load dataset
 dataset = load_dataset()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset = {0: dataset[0]}
+# dataset = {0: dataset[0]}
 
 # Create an interactive PyVista plotter
 plotter = pv.Plotter()
@@ -77,11 +77,11 @@ def clamp(value, min_value, max_value):
 # # Generate random points
 # spread = 5
 # bounds = (-spread, spread)
-# points_world = generate_random_points(500, bounds).to(device)
+# points_world = generate_random_points(50, bounds).to(device)
 # # points_world[:, 2] = -5
-# # points_world = torch.tensor([[2, 0, 5]]).to(device)
+# # points_world = torch.tensor([[0, -5, 0]]).to(device)
 # visibilities = check_visibility(points_world, dataset, device, False)
-# distances = estimate_distances(points_world, dataset, device, False)
+# distances = estimate_distances(points_world, dataset, device, True)
 # print(distances)
 
 # # Ajouter des sphères au plotter en fonction des distances
@@ -93,11 +93,14 @@ def clamp(value, min_value, max_value):
 #     if not distance:
 #         print(f"Error with point {point}")
 #         continue
-
-#     scale = clamp(1000 - distance, 0, 1) / 10.0
+#     distance = math.fabs(distance)
+#     if distance > 50: continue
+    
+#     scale = distance
+#     opacity = 0.25
 #     color = "yellow"
 #     sphere = pv.Sphere(radius=scale, center=point)
-#     plotter.add_mesh(sphere, color=color)
+#     plotter.add_mesh(sphere, color=color, opacity=opacity)
 
 # Add spheres and local coordinate system axes for cameras
 for index, data in dataset.items():
@@ -121,18 +124,11 @@ for index, data in dataset.items():
     plotter.add_point_labels([camera_pos_from_transform.numpy()], [f"Camera {index}"], point_size=20, font_size=12, name=f"label_{index}")
 
     # Compute frustum corners and edges
-    frustum_corners, frustum_edges = create_frustum(camera_projection, camera_transform, 0.005)
+    frustum_corners, frustum_edges = create_frustum(camera_projection, camera_transform, 0.010)
     # Generate frustum as a line mesh
     frustum_lines = create_frustum_lines(frustum_corners, frustum_edges)
     # Add the frustum as a **wireframe** without removing existing objects
     plotter.add_mesh(frustum_lines, color="cyan", line_width=2, opacity=0.7)
-
-
-
-
-
-
-
 
 
 # Sphere to move around
@@ -141,7 +137,7 @@ sphere_actor = plotter.add_mesh(pv.Sphere(radius=0.5, center=sphere_pos), color=
 move_speed = 0.5
 
 def move_sphere(direction):
-    global sphere_pos
+    global sphere_pos, sphere_actor
 
     if direction == "up":  # Move forward (positive Y)
         sphere_pos[1] += move_speed
@@ -156,12 +152,20 @@ def move_sphere(direction):
     elif direction == "down_z":  # Move down (negative Z)
         sphere_pos[2] -= move_speed
 
-
-    # Update sphere position
-    print(f"{direction}: {sphere_pos}")
-    sphere_actor.SetPosition(sphere_pos)
+    # Compute new distance
     dist = estimate_distances(torch.tensor([sphere_pos], device=device), dataset, device, False)
-    print(f"Distance: {dist}")
+    distance = dist[0] if dist[0] is not None else 0.25  # Avoid invalid values
+    print(f"{direction}: {sphere_pos}, Distance: {distance}")
+    distance = math.fabs(distance)
+    if distance > 100: distance = 0.25
+
+    # Remove the old sphere and add a new one with updated scale and transparency
+    plotter.remove_actor(sphere_actor)
+
+    sphere = pv.Sphere(radius=distance, center=sphere_pos)  # Scale sphere based on distance
+    sphere_actor = plotter.add_mesh(sphere, color="yellow", opacity=0.5)  # Transparent sphere
+
+
     plotter.render()  # Refresh scene
 
 # Attach the movement function to key press events

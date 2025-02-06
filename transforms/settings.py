@@ -1,4 +1,4 @@
-DATA_PATH = "./data/alex"
+DATA_PATH = "./data/alex2"
 CAMERAS_PATH = f"{DATA_PATH}/cameras_attributes.npz"
 DEPTHS_PATH = f"{DATA_PATH}/depth"
 RAYS_PATH = f"{DATA_PATH}/rays"
@@ -13,12 +13,14 @@ BASE_CAMERA_TRANSFORM_ENTRY = "cameras_matrices"
 BASE_CAMERA_PROJECTION_ENTRY = "projection_matrices"
 
 # TARGET DATASET STRUCTURE
-RAY_DIRECTIONS_ENTRY = "ray_directions"
 DEPTH_MAP_ENTRY = "depth_map"
-FILTERED_DEPTH_MAP_ENTRY = "filtered_depth_map"
-VALID_INDICES_ENTRY = "valid_indices"
-VALID_2D_INDICES_ENTRY = "valid_2D_indices"
+RAY_DIRECTIONS_ENTRY = "ray_directions"
 CAMERA_TRANSFORM_ENTRY = "camera_transform"
 CAMERA_PROJECTION_ENTRY = "camera_projection"
 
+# AFTER POST PROCESS
+FILTERED_DEPTH_MAP_ENTRY = "filtered_depth_map"
+FILTERED_RAY_DIRECTIONS_ENTRY = "filtered_ray_directions"
+
+# SAVE SYSTEM
 CHECKPOINT_NAME = "checkpoint.pth"

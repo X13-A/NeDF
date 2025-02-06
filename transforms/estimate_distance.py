@@ -16,97 +16,89 @@ def estimate_distances(points_world: torch.Tensor, dataset, device, verbose=Fals
         verbose (bool): If True, prints debugging info.
 
     Returns:
-        list: A list of length N containing estimated distances (or None for invisible points).
+        torch.Tensor: (N,) tensor containing estimated signed distances (NaN for invisible points).
     """
     num_points = points_world.shape[0]
     dtype = torch.float32
-    distances = [None] * num_points  # Initialize all distances as None
 
-    # Convert points to homogeneous coordinates (N, 4)
+    # Initialiser les distances à un grand nombre positif (sera remplacé par la distance la plus proche)
+    distances = torch.full((num_points,), float('inf'), device=device, dtype=dtype)
+
+    # Convertir les points en coordonnées homogènes (N, 4)
     ones = torch.ones((num_points, 1), device=device, dtype=dtype)
-    points_world_h = torch.cat([points_world, ones], dim=1).to(device)  # (N, 4)
+    points_world_h = torch.cat([points_world, ones], dim=1).to(device)
 
     for key, value in dataset.items():
-        print(f"\n### Processing Camera {key} ###")
+        if verbose:
+            print(f"\n### Processing Camera {key} ###")
 
-        # Get camera matrices & depth map
+        # Récupérer les matrices de caméra et la carte de profondeur
         depth_map = value[DEPTH_MAP_ENTRY].to(device, dtype=dtype)
         camera_transform = value[CAMERA_TRANSFORM_ENTRY].to(device, dtype=dtype)
         projection_matrix = value[CAMERA_PROJECTION_ENTRY].to(device, dtype=dtype)
 
-        # ✅ Transform to camera space
+        # Position de la caméra
+        camera_pos = camera_transform[:3, 3]
+
+        # Transformer les points en espace caméra
         camera_transform_inv = torch.linalg.inv(camera_transform)
-        points_camera = torch.matmul(points_world_h, camera_transform_inv.T)  # (N, 4)
+        points_camera = torch.matmul(points_world_h, camera_transform_inv.T)
 
-        if verbose:
-            print(f"Points (Camera Space):\n{points_camera}")
-
-        # ✅ Fix Z filtering condition (Z < 0 means point is in front of the camera)
+        # Filtrer les points devant la caméra (Z < 0)
         valid_mask = points_camera[:, 2] < 0
         if not valid_mask.any():
-            continue  # Skip this camera if no valid points
+            continue
 
         valid_points_camera = points_camera[valid_mask]
-        valid_indices = torch.where(valid_mask)[0]  # Indices in the original list
+        valid_points_world = points_world[valid_mask]
+        valid_indices = torch.where(valid_mask)[0]
 
-        if verbose:
-            print(f"Valid Points (Camera Space):\n{valid_points_camera}")
-
-        # ✅ Project to NDC space
+        # Projection en espace NDC
         points_ndc_hom = torch.matmul(valid_points_camera, projection_matrix.T)
+        points_ndc = points_ndc_hom[:, :3] / points_ndc_hom[:, 3:4]
 
-        # ✅ Perform perspective division
-        points_ndc = points_ndc_hom[:, :3] / points_ndc_hom[:, 3:4]  # (N_valid, 3)
-
-        if verbose:
-            print(f"Points (NDC):\n{points_ndc}")
-
-        # ✅ Check if points are within the valid NDC range
+        # Masquer les points hors des limites NDC
         ndc_mask = (
-            (points_ndc[:, 0] >= -1) & (points_ndc[:, 0] <= 1) &  # X within frustum
-            (points_ndc[:, 1] >= -1) & (points_ndc[:, 1] <= 1) &  # Y within frustum
-            (points_ndc[:, 2] >= 0) & (points_ndc[:, 2] <= 1)    # Z within near/far planes
+            (points_ndc[:, 0] >= -1) & (points_ndc[:, 0] <= 1) &  # X dans le frustum
+            (points_ndc[:, 1] >= -1) & (points_ndc[:, 1] <= 1) &  # Y dans le frustum
+            (points_ndc[:, 2] >= 0) & (points_ndc[:, 2] <= 1)     # Z dans les plans near/far
         )
 
-        valid_indices = valid_indices[ndc_mask]  # Correctly apply filtering to indices
+        valid_indices = valid_indices[ndc_mask]
         valid_points_ndc = points_ndc[ndc_mask]
-        valid_points_camera_z = valid_points_camera[:, 2][ndc_mask]  # Extract correct Z values
-
-        if verbose:
-            print(f"Valid Points (NDC):\n{valid_points_ndc}")
+        valid_points_world = valid_points_world[ndc_mask]
 
         if valid_indices.numel() == 0:
-            continue  # No valid points for this camera
+            continue
 
-        # ✅ Convert NDC to depth map coordinates
+        # Conversion des coordonnées NDC en indices de la carte de profondeur
         uv_coords = torch.stack([
             (valid_points_ndc[:, 0] * 0.5 + 0.5) * depth_map.shape[1],  # X -> width
             (valid_points_ndc[:, 1] * 0.5 + 0.5) * depth_map.shape[0]   # Y -> height
-        ], dim=1).long()  # Shape: (N_valid, 2)
+        ], dim=1).long()
 
-        if verbose:
-            print(f"UV Coords (pixel positions):\n{uv_coords}")
-
-        # ✅ Sample depth map (ensure indices are in bounds)
+        # S'assurer que les indices sont dans les limites
         x = torch.clamp(uv_coords[:, 0], 0, depth_map.shape[1] - 1)
-        y = torch.clamp(uv_coords[:, 1], 0, depth_map.shape[0] - 1)
+        y = torch.clamp(depth_map.shape[0] - 1 - uv_coords[:, 1], 0, depth_map.shape[0] - 1)
         sampled_depth = depth_map[y, x]
-        if verbose:
-            print(f"Sampled Depths:\n{sampled_depth}")
 
-        # ✅ Compute signed distance (Depth - Camera Z Coordinate)
-        signed_distance = sampled_depth - valid_points_camera_z  # Fix dimension mismatch!
-        print(f"Sampled depth: {sampled_depth}")
+        # Calcul des distances caméra-points
+        camera_distances = torch.norm(valid_points_world - camera_pos, dim=1)
 
-        if verbose:
-            print(f"Signed Distances:\n{signed_distance}")
+        # Distance signée (profondeur - distance de la caméra)
+        signed_distance = sampled_depth - camera_distances
 
-        # ✅ Store the closest valid distance
-        for i, idx in enumerate(valid_indices):
-            if distances[idx] is None or abs(signed_distance[i]) < abs(distances[idx]):
-                distances[idx] = signed_distance[i].item()
+        # Mettre à jour uniquement si la distance est plus proche de zéro
+        update_mask = torch.abs(signed_distance) < torch.abs(distances[valid_indices])
+        distances[valid_indices[update_mask]] = signed_distance[update_mask]
 
+    # Remplacer les valeurs infinies par NaN (points invisibles)
+    distances[distances == float('inf')] = float('nan')
+    
+    # Clamp to 0
+    distances = torch.clamp(distances, min=0)
     return distances
+
 
 def check_visibility(points_world: torch.Tensor, dataset, device, verbose=False):
     """

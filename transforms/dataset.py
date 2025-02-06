@@ -59,7 +59,6 @@ def load_dataset(verbose = False):
                     CAMERA_TRANSFORM_ENTRY: view_matrix_torch,
                     CAMERA_PROJECTION_ENTRY: projection_matrix_torch
                 }
-                print("success")
         except Exception as e:
             print(f"Error: {e}")
 
@@ -68,23 +67,14 @@ def load_dataset(verbose = False):
     return dataset
 
 # Pre-pass function to filter depth and corresponding ray data
-def filter_depth_map_torch(depth_map, ray_origins, ray_directions):
+def filter_depth_map_torch(depth_map, ray_directions):
     # Flatten depth map and corresponding rays
     depth_flat = depth_map.flatten()
-    ray_origins_flat = ray_origins.view(-1, 3)
     ray_directions_flat = ray_directions.view(-1, 3)
-    print(depth_flat.shape)
-    print(ray_origins_flat.shape)
-    print(ray_directions_flat.shape)
-
-    # Validate shapes
-    if depth_flat.shape[0] != ray_origins_flat.shape[0] or depth_flat.shape[1] != ray_directions_flat.shape[1]:
-        raise ValueError(f"Shape mismatch: depth {depth_flat.shape[0]}, rays {ray_origins_flat.shape[0]} {ray_directions_flat.shape[0]}")
 
     # Find maximum depth
     far_thresh = torch.max(depth_flat)
 
-    print(far_thresh)
     # Filter out max depth values
     epsilon = 1e-4
     valid_mask = depth_flat < far_thresh - epsilon
@@ -96,14 +86,13 @@ def filter_depth_map_torch(depth_map, ray_origins, ray_directions):
 
     # Extract corresponding valid data
     filtered_depth = depth_flat[valid_indices]
-    filtered_ray_origins = ray_origins_flat[valid_indices]
     filtered_ray_directions = ray_directions_flat[valid_indices]
 
-    # Compute 2D indices
+    # Compute 2D indices, not used for now
     height, width = depth_map.shape
     valid_2d_indices = torch.stack(torch.unravel_index(valid_indices, (height, width)), dim=1)
 
-    return filtered_depth, filtered_ray_origins, filtered_ray_directions, valid_indices, valid_2d_indices
+    return filtered_depth, filtered_ray_directions, valid_indices, valid_2d_indices
 
 # Post-process dataset to filter depth maps
 def post_process_dataset(dataset, device="cpu"):
@@ -111,30 +100,16 @@ def post_process_dataset(dataset, device="cpu"):
 
     for index, entry in dataset.items():
         try:
-            # Store old values (for reconstruction)
-            dataset[index]["OLD" + DEPTH_MAP_ENTRY] = dataset[index][DEPTH_MAP_ENTRY].clone()
-            dataset[index]["OLD" + RAYS_ENTRY] = {
-                RAY_ORIGINS_ENTRY: dataset[index][RAYS_ENTRY][RAY_ORIGINS_ENTRY].clone(),
-                RAY_DIRECTIONS_ENTRY: torch.tensor(dataset[index][RAYS_ENTRY][RAY_DIRECTIONS_ENTRY], device=device),
-            }
-            dataset[index]["OLD" + CAMERA_POS_ENTRY] = dataset[index][CAMERA_POS_ENTRY].clone()
-
             # Extract depth map and ray data
             depth_map = entry[DEPTH_MAP_ENTRY].to(device)
-            ray_origins = entry[RAYS_ENTRY][RAY_ORIGINS_ENTRY].to(device)
-            ray_directions = entry[RAYS_ENTRY][RAY_DIRECTIONS_ENTRY].to(device)
+            ray_directions = entry[RAY_DIRECTIONS_ENTRY].to(device)
 
             # Apply sorting and filtering
-            filtered_depth, sorted_ray_origins, sorted_ray_directions, valid_indices, valid_2D_indices = filter_depth_map_torch(
-                depth_map, ray_origins, ray_directions
-            )
+            filtered_depth, filtered_ray_directions, valid_indices, valid_2D_indices = filter_depth_map_torch(depth_map, ray_directions)
 
             # Update dataset entry
             dataset[index][FILTERED_DEPTH_MAP_ENTRY] = filtered_depth
-            dataset[index][RAYS_ENTRY][RAY_ORIGINS_ENTRY] = sorted_ray_origins
-            dataset[index][RAYS_ENTRY][RAY_DIRECTIONS_ENTRY] = sorted_ray_directions
-            dataset[index][VALID_INDICES_ENTRY] = valid_indices
-            dataset[index][VALID_2D_INDICES_ENTRY] = valid_2D_indices
+            dataset[index][FILTERED_RAY_DIRECTIONS_ENTRY] = filtered_ray_directions
         except Exception as e:
             print(f"Error processing index {index}: {e}")
 
